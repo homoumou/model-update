@@ -19,7 +19,7 @@ from torchvision import transforms, datasets
 import matplotlib.pyplot as plt
 
 
-# 构建resblock
+# create resblock
 class resblock(nn.Module):
     def __init__(self, ch_in, ch_out, stride=1):
         super(resblock, self).__init__()
@@ -43,9 +43,7 @@ class resblock(nn.Module):
         out = F.relu(out)
         return out
 
-    # 搭建resnet
-
-
+    # create resnet
 class Resnet18(nn.Module):
     def __init__(self, num_class):
         super(Resnet18, self).__init__()
@@ -64,7 +62,7 @@ class Resnet18(nn.Module):
         x = self.block2(x)
         x = self.block3(x)
         x = self.block4(x)
-        x = x.reshape(x.size(0), -1)  # 进行打平操作
+        x = x.reshape(x.size(0), -1)  # flatten
         result = self.outlayer(x)
         return result
 
@@ -78,11 +76,11 @@ def get_Data(path):
     return df, dl
 
 def get_Mnist(path):
-    # 载入数据
+    # load data
     trans = transforms.Compose((transforms.Resize((32, 32)), transforms.ToTensor()))
     train_set = datasets.MNIST(path, train=True, transform=trans, download=False)
     print("train_set length: ", len(train_set))
-    # mnist中的test_set一共有1万张照片，这里我们把前5000张用作validation_set,后5000张用作test_set
+
     val_set = list(datasets.MNIST(path, train=False, transform=trans, download=False))[:5000]
     test_set = list(datasets.MNIST(path, train=False, transform=trans, download=False))[5000:]
     return train_set, val_set , test_set
