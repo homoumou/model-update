@@ -55,20 +55,15 @@ def get_Data(path):
 
 
 def data_preprocessing(df):
-
     y = df.attack
     x = df.drop(['attack', 'attack_P1', 'attack_P2', 'attack_P3', 'time'], axis=1)
     values = x
     values.replace([np.inf, -np.inf], np.nan, inplace=True)
-
     #normalization
     scaler = MinMaxScaler()
     X_normalized = scaler.fit_transform(values)
-
     # Divide data into training and validation subsets
-    X_train_full, X_valid_full, y_train, y_valid = train_test_split(X_normalized, y, train_size=0.9, test_size=0.1,
-                                                                    random_state=0)
-
+    X_train_full, X_valid_full, y_train, y_valid = train_test_split(X_normalized, y, train_size=0.9, test_size=0.1,random_state=0)
     TIME_STEPS = 1
     X_train = pd.DataFrame(X_train_full)
     X_train = create_dataset(X_train, TIME_STEPS)
@@ -99,66 +94,66 @@ def create_dataset(X, time_steps):
     return np.array(Xs)
 
 
-# def training(epochs, train_dataloader):
-#     device = torch.device('cuda')
-#     model = LSTM(input_size, output_size, hidden_size, num_layers).to(device)
-#     loss_function = nn.BCELoss().to(device)
-#     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-#     for epoch in range(epochs):
-#         model.train()
-#         for batch, (batch_x, batch_y) in enumerate(train_dataloader):
-#             batch_x = batch_x.cuda()
-#
-#             output, pre_out = model(batch_x)
-#             output = torch.reshape(output, [-1, 1])
-#
-#             batch_y = np.array(batch_y)
-#             batch_y = torch.tensor(np.reshape(batch_y, [-1, 1]))
-#             batch_y = batch_y.float()
-#             batch_y = batch_y.cuda()
-#
-#             loss = loss_function(output, batch_y)
-#             acc = evaluate_accuracy(batch_x, batch_y, model)
-#             optimizer.zero_grad()
-#             loss.backward()
-#             optimizer.step()
-#
-#         if epoch % 5 == 0:
-#             print("epoch:{} batch:{} loss:{} acc:{}".format(epoch, batch, loss.item(), acc))
-#
-
-def training(epochs):
+def training(epochs, train_dataloader):
     device = torch.device('cuda')
     model = LSTM(input_size, output_size, hidden_size, num_layers).to(device)
     loss_function = nn.BCELoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    time_start = time.time()
     for epoch in range(epochs):
         model.train()
-        x = torch.tensor(X_train[:, :, :]).float()
-        x = torch.where(torch.isnan(x), torch.full_like(x, 0), x)
+        for batch, (batch_x, batch_y) in enumerate(train_dataloader):
+            batch_x = batch_x.cuda()
 
-        y = y_train[:]
-        y = np.array(y)
-        y = torch.tensor(np.reshape(y, [-1, 1]))
-        y = y.float()
+            output, pre_out = model(batch_x)
+            output = torch.reshape(output, [-1, 1])
 
-        x = x.cuda()
-        y = y.cuda()
+            batch_y = np.array(batch_y)
+            batch_y = torch.tensor(np.reshape(batch_y, [-1, 1]))
+            batch_y = batch_y.float()
+            batch_y = batch_y.cuda()
 
-        output, pre_out = model(x)
-        output = torch.reshape(output, [-1, 1])
-        loss = loss_function(output, y)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            loss = loss_function(output, batch_y)
+            acc = evaluate_accuracy(batch_x, batch_y, model)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
         if epoch % 5 == 0:
-            print("epoch:{} loss:{}".format(epoch, loss.item()))
+            print("epoch:{} batch:{} loss:{} acc:{}".format(epoch, batch, loss.item(), acc))
 
 
-        time_end = time.time()
-        print('totally cost', time_end - time_start)
+# def training(epochs):
+#     device = torch.device('cuda')
+#     model = LSTM(input_size, output_size, hidden_size, num_layers).to(device)
+#     loss_function = nn.BCELoss().to(device)
+#     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+#     time_start = time.time()
+#     for epoch in range(epochs):
+#         model.train()
+#         x = torch.tensor(X_train[:, :, :]).float()
+#         x = torch.where(torch.isnan(x), torch.full_like(x, 0), x)
+#
+#         y = y_train[:]
+#         y = np.array(y)
+#         y = torch.tensor(np.reshape(y, [-1, 1]))
+#         y = y.float()
+#
+#         x = x.cuda()
+#         y = y.cuda()
+#
+#         output, pre_out = model(x)
+#         output = torch.reshape(output, [-1, 1])
+#         loss = loss_function(output, y)
+#         optimizer.zero_grad()
+#         loss.backward()
+#         optimizer.step()
+#
+#         if epoch % 5 == 0:
+#             print("epoch:{} loss:{}".format(epoch, loss.item()))
+#
+#
+#         time_end = time.time()
+#         print('totally cost', time_end - time_start)
 
 
 
@@ -258,6 +253,19 @@ def calUpdate(a, alpha, beta, Data):
 
     return None
 
+def getDataloader(X_train,y_train):
+# 将输入和输出封装进Data.TensorDataset()类对象
+    x = torch.tensor(X_train[:,:,:]).float()
+    x = torch.where(torch.isnan(x), torch.full_like(x, 0), x)
+    y = y_train[:]
+    y = np.array(y)
+# y = torch.tensor(np.reshape(y,[-1,1]))
+    y = torch.tensor(y)
+    y = y.float()
+    torch_dataset = Data.TensorDataset(x,y)
+    train_dataloader = torch.utils.data.DataLoader(torch_dataset, batch_size=60, shuffle=False, num_workers=0)
+    return X_train, y_train, train_dataloader
+
 # Selected wasted dataset
 def selectDataset(bacth_df):
     wasted_df = bacth_df[bacth_df[0] >=1]
@@ -297,16 +305,21 @@ if __name__ == "__main__":
        device = torch.device('cuda')
        model = LSTM(input_size, output_size, hidden_size, num_layers).to(device)
        X_train, y_train, x_val, y_val = data_preprocessing(df_data[0:update_time])
+       x, y, dataloader = getDataloader(X_train,y_train)
        print(len(X_train))
-       update(200, X_train, y_train, model)
+       # update(200, X_train, y_train, model)
+       training(1,dataloader)
 
     X_train, y_train, x_val, y_val = data_preprocessing(df_data[update_time:])
+    x, y, dataloader = getDataloader(X_train, y_train)
     print(len(X_train))
-    update(200, X_train, y_train, model)
+    # update(200, X_train, y_train, model)
+    training(1, dataloader)
 
     X_train, y_train, x_val, y_val = data_preprocessing(df_data)
+    x, y, dataloader = getDataloader(X_train, y_train)
     print(len(X_train))
     update(200, X_train, y_train, model)
-
+    training(1, dataloader)
     # 761 > 655+89
     pass
