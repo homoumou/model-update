@@ -4,12 +4,8 @@ import torch
 import time
 from torch import nn
 from torch.utils import data
-# from torch.nn import functional as F
-# from torchsummary import summary
-# from torch.autograd import Variable
 import torch.utils.data as Data
 import glob, os
-import sklearn
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
@@ -120,7 +116,7 @@ def training(epochs, train_dataloader):
 
         if epoch % 5 == 0:
             print("epoch:{} batch:{} loss:{} acc:{}".format(epoch, batch, loss.item(), acc))
-
+    return model
 
 # def training(epochs):
 #     device = torch.device('cuda')
@@ -212,6 +208,28 @@ def update(epochs, X_train, y_train, model):
     print('totally cost', time_end - time_start)
     return
 
+def evaluate_model(X_train,y_train, X_valid, y_valid, model):
+    model.eval()
+    x = torch.tensor(X_train[:, :, :]).float()
+    x = torch.where(torch.isnan(x), torch.full_like(x, 0), x)
+    y = y_train[:]
+    y = np.array(y)
+    y = torch.tensor(np.reshape(y, [-1, 1]))
+    y = y.float()
+    x = x.cuda()
+    y = y.cuda()
+    x_valid = torch.tensor(X_valid[:, :, :]).float()
+    x_valid = torch.where(torch.isnan(x_valid), torch.full_like(x_valid, 0), x_valid)
+    y_val = y_valid[:]
+    y_val = np.array(y_val)
+    y_val = torch.tensor(np.reshape(y_val, [-1, 1]))
+    y_val = y_val.float()
+
+    x_valid = x_valid.cuda()
+    y_val = y_val.cuda()
+
+    print("train acc", evaluate_accuracy(x, y, model))
+    print("valid acc:", evaluate_accuracy(x_valid, y_val, model))
 
 # def get_Datasize(begin, end, Data):
 #     datasize = 0
@@ -276,6 +294,7 @@ def replaceDataset(wasted_array, used_dataset, new_dataset):
     for batch_index in wasted_array:
         index = batch_index * 60
         used_dataset[index:(index + 60)] = new_dataset[index:(index + 60)]
+    return used_dataset
 
 if __name__ == "__main__":
     input_size = 79
@@ -308,18 +327,21 @@ if __name__ == "__main__":
        x, y, dataloader = getDataloader(X_train,y_train)
        print(len(X_train))
        # update(200, X_train, y_train, model)
-       training(1,dataloader)
+       model = training(1, dataloader)
+       evaluate_model(X_train, y_train, x_val, y_val, model)
 
     X_train, y_train, x_val, y_val = data_preprocessing(df_data[update_time:])
     x, y, dataloader = getDataloader(X_train, y_train)
     print(len(X_train))
     # update(200, X_train, y_train, model)
-    training(1, dataloader)
+    model = training(1, dataloader)
+    evaluate_model(X_train, y_train, x_val, y_val, model)
 
     X_train, y_train, x_val, y_val = data_preprocessing(df_data)
     x, y, dataloader = getDataloader(X_train, y_train)
     print(len(X_train))
-    update(200, X_train, y_train, model)
-    training(1, dataloader)
+    # update(200, X_train, y_train, model)
+    model = training(1, dataloader)
+    evaluate_model(X_train, y_train, x_val, y_val, model)
     # 761 > 655+89
     pass

@@ -1,22 +1,17 @@
-import math
-
+import torch
 import pandas as pd
 import numpy as np
-import torch
 import time
 from torch import nn
 from torch.nn import functional as F
-from torch.utils import data
+from torchvision import transforms,datasets
+from torch.utils.data import DataLoader
 import torch.utils.data as Data
 import glob, os
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
-from torchvision.models import resnet18
-from torch.utils.data import DataLoader
-import torch
-from torch.utils.data import DataLoader,Dataset
-from torchvision import transforms, datasets
-import matplotlib.pyplot as plt
+import warnings
+warnings.simplefilter('ignore')
+
+
 
 
 # create resblock
@@ -106,86 +101,12 @@ def seperate_second_datasets(path,data_range):
     return train_set
 
 
-# def data_preprocessing(df):
-#     # df['marker'] = df['marker'].replace(['Natural'], 0)
-#     # df['marker'] = df['marker'].replace(['Attack'], 1)
-#     # df['marker'].value_counts()
-#     # np.all(np.isfinite(values))
-#
-#     # y = df.marker
-#     # x = df.drop(['marker'], axis=1)
-#     y = df.attack
-#     x = df.drop(['attack', 'attack_P1', 'attack_P2', 'attack_P3', 'time'], axis=1)
-#     values = x
-#     values.replace([np.inf, -np.inf], np.nan, inplace=True)
-#
-#     #normalization
-#     scaler = MinMaxScaler()
-#     X_normalized = scaler.fit_transform(values)
-#
-#     # Divide data into training and validation subsets
-#     X_train_full, X_valid_full, y_train, y_valid = train_test_split(X_normalized, y, train_size=0.9, test_size=0.1,
-#                                                                     random_state=0)
-#
-#     TIME_STEPS = 1
-#     X_train = pd.DataFrame(X_train_full)
-#     X_train = create_dataset(X_train, TIME_STEPS)
-#     y_train = pd.DataFrame(y_train)
-#     y_train = create_dataset(y_train, TIME_STEPS)
-#     X_valid = pd.DataFrame(X_valid_full)
-#     X_valid = create_dataset(X_valid, TIME_STEPS)
-#     y_valid = pd.DataFrame(y_valid)
-#     y_valid = create_dataset(y_valid, TIME_STEPS)
-#
-#     return X_train, y_train, X_valid, y_valid
-
-
 def evaluate_accuracy(x, y, model):
     output, pre_out = model(x)
     output = torch.reshape(output, [-1, 1])
     correct = (output.ge(0.5) == y).sum().item()
     n = y.shape[0]
     return correct / n
-
-
-# function to convert to time domain dataset
-# def create_dataset(X, time_steps):
-#     Xs = []
-#     for i in range(len(X) - time_steps):
-#         v = X.iloc[i:(i + time_steps)].values
-#         Xs.append(v)
-#     return np.array(Xs)
-
-
-# def training(epochs, train_dataloader):
-#     device = torch.device('cuda')
-#     model = LSTM(input_size, output_size, hidden_size, num_layers).to(device)
-#     loss_function = nn.BCELoss().to(device)
-#     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-#     for epoch in range(epochs):
-#         model.train()
-#         for batch, (batch_x, batch_y) in enumerate(train_dataloader):
-#             batch_x = batch_x.cuda()
-#
-#             output, pre_out = model(batch_x)
-#             output = torch.reshape(output, [-1, 1])
-#
-#             batch_y = np.array(batch_y)
-#             batch_y = torch.tensor(np.reshape(batch_y, [-1, 1]))
-#             batch_y = batch_y.float()
-#             batch_y = batch_y.cuda()
-#
-#             loss = loss_function(output, batch_y)
-#             acc = evaluate_accuracy(batch_x, batch_y, model)
-#             optimizer.zero_grad()
-#             loss.backward()
-#             optimizer.step()
-#
-#         if epoch % 5 == 0:
-#             print("epoch:{} batch:{} loss:{} acc:{}".format(epoch, batch, loss.item(), acc))
-#
-
-
 
 def training(epochs, train_loader):
     device = torch.device('cuda')
@@ -265,52 +186,11 @@ def create_dataload(x, y):
     train_dataloader = torch.utils.data.DataLoader(torch_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
     return train_dataloader
 
-
-# def update(epochs, X_train, y_train, model):
-#     device = torch.device('cuda')
-#     loss_function = nn.BCELoss().to(device)
-#     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-#     print(len(X_train))
-#     time_start = time.time()
-#
-#     for epoch in range(epochs):
-#         model.train()
-#         x = torch.tensor(X_train[:, :, :]).float()
-#         x = torch.where(torch.isnan(x), torch.full_like(x, 0), x)
-#
-#         y = y_train[:]
-#         y = np.array(y)
-#         y = torch.tensor(np.reshape(y, [-1, 1]))
-#         y = y.float()
-#
-#         x = x.cuda()
-#         y = y.cuda()
-#
-#         output, pre_out = model(x)
-#         output = torch.reshape(output, [-1, 1])
-#         loss = loss_function(output, y)
-#         optimizer.zero_grad()
-#         loss.backward()
-#         optimizer.step()
-#
-#         if epoch % 5 == 0:
-#             print("epoch:{} loss:{}".format(epoch, loss.item()))
-#
-#     time_end = time.time()
-#     print('totally cost: ', time_end - time_start)
-#     return
-
-
 def get_Datasize(begin, end, batch_Size):
     datasize = 0
     for x in range(begin, end):
         datasize += batch_Size
     return datasize
-
-# def get_Datasize(begin, end, Data):
-#     datasize = Data[begin:end].shape[0]
-#
-#     return datasize
 
 # begin: start time   end: data  end time
 def calcLat(begin, end, alpha, beta, weight, Data_len):
@@ -352,19 +232,19 @@ def evaluate_accuracy(x,y,model):
     n = y.shape[0]
     return correct
 
+def selectDataset(bacth_df):
+    wasted_df = bacth_df[bacth_df[0] >=1]
+    wasted_array = wasted_df.index
+    return wasted_array
+
+def replaceDataset(wasted_array, used_dataset, new_dataset):
+    for batch_index in wasted_array:
+        index = batch_index * 60
+        used_dataset[index:(index + 60)] = new_dataset[index:(index + 60)]
+
 if __name__ == "__main__":
-    # input_size = 79
-    # output_size = 1
-    # hidden_size = 64
-    # num_layers = 2
-    # alpha = 0.00682448
-    # beta = 3.0235812
-    # alpha = 0.00017225
-    # beta = 2.25016395
     alpha = 0.00136738
     beta = 2.57748957
-    # alpha = 0.00231278
-    # beta = -15.11025307
 
     train_batch_size=100
     val_batch_size=50
@@ -378,8 +258,7 @@ if __name__ == "__main__":
     a = []
     for x in range(0, len(whole_train_loader)):
         a.append(x)
-    # model = buildModel(input_size, output_size, hidden_size, num_layers)
-    # update_time, saveLatency = decideUpdate(a, alpha, beta, dl)
+
     update_time, saveLatency = calUpdate(a, alpha, beta, train_batch_size)
     print('whole dataset uqdate time: ',update_time)
 
