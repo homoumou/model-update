@@ -1,17 +1,18 @@
-import pandas as pd
-import numpy as np
-import torch
+import glob
+import os
 import time
-from torch import nn
-from torch.utils import data
+
+import numpy as np
+import pandas as pd
+import torch
 # from torch.nn import functional as F
 # from torchsummary import summary
 # from torch.autograd import Variable
 import torch.utils.data as Data
-import glob, os
-import sklearn
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from torch import nn
+from torch.utils import data
 from tqdm import tqdm
 
 
@@ -178,7 +179,7 @@ def create_dataload(x, y):
     data_y = torch.tensor(data_y)
     data_y = data_y.float()
     torch_dataset = Data.TensorDataset(data_x, data_y)
-    BATCH_SIZE = 500
+    BATCH_SIZE = 60
     train_dataloader = torch.utils.data.DataLoader(torch_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
     return train_dataloader
 
@@ -245,16 +246,32 @@ def calUpdate(a, alpha, beta, Data):
     n = len(a)
     weight = 0.4
     whole_latency = calcLat(1, n, alpha, beta, weight, Data)
-    for time in range(2, n - 1):
-        print('time:',time)
-        # data_size = get_Datasize(2, n - 1, Data)
-        # alpha, beta = get_parameter()
-        latency = calcLat(1, time, alpha, beta, weight, Data) + calcLat(time + 1, n, alpha, beta, weight, Data)
+    left = 0
+    right = n - 1
+    # for time in range(2, n - 1):
+    #     print('time:',time)
+    #     # data_size = get_Datasize(2, n - 1, Data)
+    #     # alpha, beta = get_parameter()
+    #     # time = left + (right-left)/2
+    #     latency = calcLat(1, time, alpha, beta, weight, Data) + calcLat(time + 1, n, alpha, beta, weight, Data)
+    #     print('latency reduction:', whole_latency - latency)
+    #     print('expect reduction:', weight * whole_latency)
+    #     if whole_latency - latency > weight * whole_latency:  # l - l` > w*l
+    #         update_time = time
+    #         return update_time, whole_latency - latency
+
+    while (left < right):
+        mid = left + ((right - left) >> 1);
+        latency = calcLat(1, mid, alpha, beta, weight, Data) + calcLat(mid + 1, n, alpha, beta, weight, Data)
         print('latency reduction:', whole_latency - latency)
         print('expect reduction:', weight * whole_latency)
-        if whole_latency - latency > weight * whole_latency:  # l - l` > w*l
-            update_time = time
-            return update_time, whole_latency - latency
+        if whole_latency - latency > weight * whole_latency:
+            right = mid
+        else:
+            left = mid + 1;
+
+    update_time = right
+    return update_time, whole_latency - latency
 
     return None
 
@@ -297,13 +314,15 @@ if __name__ == "__main__":
        device = torch.device('cuda')
        model = LSTM(input_size, output_size, hidden_size, num_layers).to(device)
        X_train, y_train, x_val, y_val = data_preprocessing(df_data[0:update_time])
+       print('---------------------------------first datasets training----------------------------------------------------')
        print(len(X_train))
        update(200, X_train, y_train, model)
 
+    print('---------------------------------second datasets training----------------------------------------------------')
     X_train, y_train, x_val, y_val = data_preprocessing(df_data[update_time:])
     print(len(X_train))
     update(200, X_train, y_train, model)
-
+    print('----------------------------------whole datasets training-------------------------------------------------')
     X_train, y_train, x_val, y_val = data_preprocessing(df_data)
     print(len(X_train))
     update(200, X_train, y_train, model)

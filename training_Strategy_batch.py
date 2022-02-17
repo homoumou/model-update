@@ -1,13 +1,15 @@
-import pandas as pd
-import numpy as np
-import torch
+import glob
+import os
 import time
+
+import numpy as np
+import pandas as pd
+import torch
+import torch.utils.data as Data
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
 from torch import nn
 from torch.utils import data
-import torch.utils.data as Data
-import glob, os
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 
@@ -41,7 +43,7 @@ class LSTM(nn.Module):
 
 
 def get_Data(path):
-    file = glob.glob(os.path.join(path, "test2.csv"))
+    file = glob.glob(os.path.join(path, "test*.csv"))
     print(file)
     dl = []
     for f in file:
@@ -110,6 +112,8 @@ def training(epochs, train_dataloader):
 
             loss = loss_function(output, batch_y)
             acc = evaluate_accuracy(batch_x, batch_y, model)
+            if (batch + 1) % 100 == 0:
+                print('epoch:{} batch:{} loose:{}'.format(epoch + 1, batch + 1, loss.item()))
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -169,7 +173,7 @@ def create_dataload(x, y):
     data_y = torch.tensor(data_y)
     data_y = data_y.float()
     torch_dataset = Data.TensorDataset(data_x, data_y)
-    BATCH_SIZE = 500
+    BATCH_SIZE = 60
     train_dataloader = torch.utils.data.DataLoader(torch_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=1)
     return train_dataloader
 
@@ -258,18 +262,21 @@ def calUpdate(a, alpha, beta, Data):
     n = len(a)
     weight = 0.4
     whole_latency = calcLat(1, n, alpha, beta, weight, Data)
-    for time in range(2, n - 1):
-        print('time:',time)
-        # data_size = get_Datasize(2, n - 1, Data)
-        # alpha, beta = get_parameter()
-        latency = calcLat(1, time, alpha, beta, weight, Data) + calcLat(time + 1, n, alpha, beta, weight, Data)
+    left = 0
+    right = n - 1
+
+    while (left < right):
+        mid = left + ((right - left) >> 1);
+        latency = calcLat(1, mid, alpha, beta, weight, Data) + calcLat(mid + 1, n, alpha, beta, weight, Data)
         print('latency reduction:', whole_latency - latency)
         print('expect reduction:', weight * whole_latency)
-        if whole_latency - latency > weight * whole_latency:  # l - l` > w*l
-            update_time = time
-            return update_time, whole_latency - latency
+        if whole_latency - latency > weight * whole_latency:
+            right = mid
+        else:
+            left = mid + 1;
 
-    return None
+    update_time = right
+    return update_time, whole_latency - latency
 
 def getDataloader(X_train,y_train):
 # 将输入和输出封装进Data.TensorDataset()类对象
@@ -318,28 +325,28 @@ if __name__ == "__main__":
     # model = buildModel(input_size, output_size, hidden_size, num_layers)
     # update_time, saveLatency = decideUpdate(a, alpha, beta, dl)
     update_time, saveLatency = calUpdate(a, alpha, beta, df_data)
-    print(update_time)
+    print('update time:', update_time)
 
     if update_time != None:
        device = torch.device('cuda')
        model = LSTM(input_size, output_size, hidden_size, num_layers).to(device)
        X_train, y_train, x_val, y_val = data_preprocessing(df_data[0:update_time])
        x, y, dataloader = getDataloader(X_train,y_train)
-       print(len(X_train))
+       print('train data size:', len(X_train))
        # update(200, X_train, y_train, model)
        model = training(1, dataloader)
        evaluate_model(X_train, y_train, x_val, y_val, model)
 
     X_train, y_train, x_val, y_val = data_preprocessing(df_data[update_time:])
     x, y, dataloader = getDataloader(X_train, y_train)
-    print(len(X_train))
+    print('train data size:', len(X_train))
     # update(200, X_train, y_train, model)
     model = training(1, dataloader)
     evaluate_model(X_train, y_train, x_val, y_val, model)
 
     X_train, y_train, x_val, y_val = data_preprocessing(df_data)
     x, y, dataloader = getDataloader(X_train, y_train)
-    print(len(X_train))
+    print('train data size:', len(X_train))
     # update(200, X_train, y_train, model)
     model = training(1, dataloader)
     evaluate_model(X_train, y_train, x_val, y_val, model)
