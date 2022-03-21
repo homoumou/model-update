@@ -97,14 +97,13 @@ Suppose we have m data samples arrive in sequence at time a_1,…., a_m. The sys
 ![image](https://user-images.githubusercontent.com/41387221/159193519-4a7a55e9-9759-4ead-acc9-bb6f1820ec7b.png)
 
 Since all sample in D_i get incorporated after the i-th update completes, the cumulative latency is computed as 
-![image](https://user-images.githubusercontent.com/41387221/159193528-90dfe371-ea5d-45fd-8740-79389af97a71.png)
+![image](https://user-images.githubusercontent.com/41387221/159193608-46bd878f-31a6-4a8e-8941-f00ce85125e3.png)
 
 Summing up L_i over all n updates, we obtain the data incorporation latency
-
-L= ∑_i▒L_i 
+![image](https://user-images.githubusercontent.com/41387221/159193577-05ca05d2-56e7-4219-99c8-848fa73b178a.png)
 
 To minimum the training cost, we propose a cost-aware policy for fast data incorporation at low training cost. we introduce “knob” parameter w, meaning, for every unit of training cost it spends, it expects the data incorporation latency to be reduced by w. In this model, latency Li and cost τi are “exchangeable” and are hence unifed as one objective, which we call latency-cost sum, i.e.
-![image](https://user-images.githubusercontent.com/41387221/159193532-703e0e9e-0baa-4edf-a5fb-3cf996435a14.png)
+![image](https://user-images.githubusercontent.com/41387221/159193595-09371259-1243-434c-846a-d84794825e56.png)
 
 To compute the maximum latency reduction, we develop cost-aware model update strategy. 
  ![image](https://user-images.githubusercontent.com/41387221/159193538-515135db-73f9-4efc-aa8f-62c74471104c.png)
